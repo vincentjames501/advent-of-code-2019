@@ -131,7 +131,7 @@
         (first new-program)))))
 
 (defn run
-  "Runs part 1 and 2 of day 2."
+  "Runs part 1 and 2 of day 5."
   []
   (let [program (intcode-program)]
     (println "Part 1 - Result from Intcode program:"
