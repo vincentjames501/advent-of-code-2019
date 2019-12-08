@@ -1,7 +1,7 @@
 (ns advent-of-code.day-03
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
-            [clojure.set :as set]))
+            [clojure.core.reducers :as r]))
 
 (defn parse-directions
   "Parses the directions from a direction string splitting on comma and returning
@@ -17,9 +17,9 @@
   "Returns a tuple of both directions."
   []
   (let [text (slurp (io/resource "day_03.txt"))
-          [directions-1-str directions-2-str] (str/split text #"\n")]
-      [(parse-directions directions-1-str)
-       (parse-directions directions-2-str)]))
+        [directions-1-str directions-2-str] (str/split text #"\n")]
+    [(parse-directions directions-1-str)
+     (parse-directions directions-2-str)]))
 
 (defn manhattan-distance
   "Returns the manhattan distance of a given coordinate."
@@ -32,7 +32,7 @@
   (loop [[current-direction & next-directions] directions
          [x y] [0 0]
          steps 0
-         acc #{}]
+         acc []]
     (if-let [[direction amplitude] current-direction]
       (let [iterations (range 1 (inc amplitude))
             points (case direction
@@ -45,43 +45,44 @@
                [new-x new-y]
                (+ steps amplitude)
                (apply conj acc points)))
-      acc)))
+      (->> acc
+           (r/reduce
+             (fn [acc v]
+               (let [k (pop v)]
+                 (if (contains? acc k)
+                   acc
+                   (assoc acc k v))))
+             {})))))
 
 (defn find-smallest-manhattan-distance
   "Finds all intersections and returns the value of the shortest manhattan distance."
-  [directions-1 directions-2]
-  (let [visited-coordinates-with-steps-1 (visited-coordinates-with-steps directions-1)
-        visited-coordinates-with-steps-2 (visited-coordinates-with-steps directions-2)
-        visited-coordinates-1 (set (map pop visited-coordinates-with-steps-1))
-        visited-coordinates-2 (set (map pop visited-coordinates-with-steps-2))]
-    (->> (set/intersection visited-coordinates-1 visited-coordinates-2)
-         (map manhattan-distance)
-         (apply min))))
+  [intersections]
+  (->> intersections
+       (r/map manhattan-distance)
+       (into [])
+       (apply min)))
 
 (defn find-shortest-intersection-steps
   "Finds the shortest intersection and returns the number of steps taken to get there
   from both paths."
-  [directions-1 directions-2]
-  (let [visited-coordinates-with-steps-1 (visited-coordinates-with-steps directions-1)
-        visited-coordinates-with-steps-2 (visited-coordinates-with-steps directions-2)
-        visited-coordinates-1 (set (map pop visited-coordinates-with-steps-1))
-        visited-coordinates-2 (set (map pop visited-coordinates-with-steps-2))
-        lookups-1 (group-by pop visited-coordinates-with-steps-1)
-        lookups-2 (group-by pop visited-coordinates-with-steps-2)]
-    (->> (set/intersection visited-coordinates-1 visited-coordinates-2)
-         (map (fn [intersection]
-                (let [coordinates-with-steps-1 (get lookups-1 intersection)
-                      coordinates-with-steps-2 (get lookups-2 intersection)
-                      min-steps-1 (apply min (map #(nth % 2) coordinates-with-steps-1))
-                      min-steps-2 (apply min (map #(nth % 2) coordinates-with-steps-2))]
-                  (+ min-steps-1 min-steps-2))))
-         (apply min))))
+  [visited-coordinates-with-steps-1 visited-coordinates-with-steps-2 intersections]
+  (->> intersections
+       (r/map (fn [intersection]
+                (+ (nth (get visited-coordinates-with-steps-1 intersection) 2)
+                   (nth (get visited-coordinates-with-steps-2 intersection) 2))))
+       (into [])
+       (apply min)))
 
 (defn run
   "Runs part 1 and 2 of day 3."
   []
-  (let [[directions-1 directions-2] (directions)]
+  (let [[directions-1 directions-2] (directions)
+        visited-coordinates-with-steps-1 (visited-coordinates-with-steps directions-1)
+        visited-coordinates-with-steps-2 (visited-coordinates-with-steps directions-2)
+        intersections (->> (keys visited-coordinates-with-steps-2)
+                           (r/filter #(contains? visited-coordinates-with-steps-1 %))
+                           (into []))]
     (println "Part 1 - Manhattan distance:"
-             (find-smallest-manhattan-distance directions-1 directions-2))
+             (find-smallest-manhattan-distance intersections))
     (println "Part 2 - Shortest intersection steps:"
-             (find-shortest-intersection-steps directions-1 directions-2))))
+             (find-shortest-intersection-steps visited-coordinates-with-steps-1 visited-coordinates-with-steps-2 intersections))))
