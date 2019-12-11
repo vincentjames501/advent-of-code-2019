@@ -86,7 +86,7 @@
   []
   (let [asteroid-belt (asteroid-belt)
         [best-location num-asteroids] (highest-number-of-asteroids asteroid-belt)
-        [[target-x target-y]] (last (take 200 (vaporization-order asteroid-belt best-location)))]
+        [[target-x target-y]] (first (drop 199 (vaporization-order asteroid-belt best-location)))]
     (println "Part 1 - Highest number of asteroids:" num-asteroids best-location)
     (println "Part 2 - 200th asteroid vaporization:"
              (+ (* 100 target-x) target-y) [target-x target-y])))
