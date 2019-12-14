@@ -169,17 +169,34 @@
      (apply max (map #(nth % 1) screen))]))
 
 (defn setup
-  "Sets up Quil"
-  []
-  (q/frame-rate 30)
+  "Sets up Quil."
+  [play-automatically?]
+  (q/frame-rate (if play-automatically? 2000 24))
   (q/color-mode :rgb)
   (apply q/background [200 200 200]))
 
+(defn find-tile
+  "Finds a tile on the screen and returns its x/y position."
+  [screen bounds tile-id]
+  (-> (let [[max-x max-y] bounds]
+        (for [x (range max-x)
+              y (range max-y)
+              :when (= (get-in screen [y x]) tile-id)]
+          [x y]))
+      first))
+
 (defn draw
   "Draw the game state using Quil."
-  [bounds]
+  [bounds play-automatically? input-chan]
   (let [{:keys [score screen]} @screen-state
         [max-x max-y] bounds]
+    (when play-automatically?
+      (let [[ball-x] (find-tile screen bounds 4)
+            [paddle-x] (find-tile screen bounds 3)]
+        (async/put! input-chan
+                    (cond (> ball-x paddle-x) 1
+                          (< ball-x paddle-x) -1
+                          :else 0))))
     (q/clear)
     (doall
       (for [x (range max-x)
@@ -233,7 +250,7 @@
 
 (defn draw-game
   "Plays the game using Quil."
-  [program initial-screen]
+  [program initial-screen play-automatically?]
   (let [input-chan (async/chan)
         output-chan (async/chan)
         free-play-program (assoc program 0 2)               ;; Insert Quarters into program
@@ -265,15 +282,16 @@
       :title "Breakout"
       :size (screen-bounds initial-screen true)
       :host "host"
-      :setup setup
-      :draw (partial draw bounds)
+      :setup (partial setup play-automatically?)
+      :draw (partial draw bounds play-automatically? input-chan)
       :key-pressed (partial key-pressed input-chan))))
 
 (defn run
   "Runs part 1 and 2 of day 13."
   []
   (let [program (intcode-program)
-        initial-screen (async/<!! (get-initial-screen program))]
+        initial-screen (async/<!! (get-initial-screen program))
+        play-automatically? true]
     (println "Part 1 - Number of blocks on the screen:"
              (count-tiles initial-screen 2))
-    (draw-game program initial-screen)))
+    (draw-game program initial-screen play-automatically?)))
