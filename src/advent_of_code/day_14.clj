@@ -52,13 +52,17 @@
 (defn max-fuel-given-ore
   "Finds the max fuel one can use given ORE. Using a hack binary search method :)."
   [reactions max-ore]
-  (-> (proxy [ArrayList] []
-        (size [] 10000000)
-        (get [index]
-          (:required (min-ore-to-produce-single-fuel reactions "FUEL" {:required (inc index) :overflow {}}))))
-      (Collections/binarySearch max-ore)
-      inc
-      (Math/abs)))
+  (let [coll (proxy [ArrayList] []
+               (size [] 10000000)
+               (get [index]
+                 (:required (min-ore-to-produce-single-fuel reactions
+                                                            "FUEL"
+                                                            {:required (inc index)
+                                                             :overflow {}}))))
+        idx (Collections/binarySearch coll max-ore)]
+    (if (neg? idx)
+      (Math/abs (inc idx))
+      (inc idx))))
 
 (defn run
   "Runs part 1 and 2 of day 14."
